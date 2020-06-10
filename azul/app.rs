@@ -62,6 +62,12 @@ use azul_core::app_resources::FakeRenderApi;
 // (otherwise, "transparent") backgrounds would be painted black.
 const COLOR_WHITE: ColorU = ColorU { r: 255, g: 255, b: 255, a: 0 };
 
+#[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
+const SHADER_VERSION: &'static str = "#version 150\n";
+
+#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+const SHADER_VERSION: &'static str = "#version 300 es\n";
+
 /// Graphical application that maintains some kind of application state
 pub struct App<T> {
     /// Your data (the global struct which all callbacks will have access to)
@@ -1620,7 +1626,6 @@ fn render_inner<T>(
 /// When called with glDrawArrays(0, 3), generates a simple triangle that
 /// spans the whole screen.
 const DISPLAY_VERTEX_SHADER: &str = "
-    #version 130
     out vec2 vTexCoords;
     void main() {
         float x = -1.0 + float((gl_VertexID & 1) << 2);
@@ -1632,7 +1637,6 @@ const DISPLAY_VERTEX_SHADER: &str = "
 
 /// Shader that samples an input texture (`fScreenTex`) to the output FB.
 const DISPLAY_FRAGMENT_SHADER: &str = "
-    #version 130
     in vec2 vTexCoords;
     uniform sampler2D fScreenTex;
     out vec4 fColorOut;
@@ -1647,8 +1651,10 @@ static mut DISPLAY_SHADER: Option<GlShader> = None;
 
 /// Compiles the display vertex / fragment shader, returns the compiled shaders.
 fn compile_screen_shader(context: Rc<dyn Gl>) -> GLuint {
+    let vertex_shader = SHADER_VERSION.to_owned() + DISPLAY_VERTEX_SHADER;
+    let fragment_shader = SHADER_VERSION.to_owned() + DISPLAY_FRAGMENT_SHADER;
     unsafe { DISPLAY_SHADER.get_or_insert_with(|| {
-        GlShader::new(context, DISPLAY_VERTEX_SHADER, DISPLAY_FRAGMENT_SHADER).unwrap()
+        GlShader::new(context, &vertex_shader, &fragment_shader).unwrap()
     }) }.program_id
 }
 
